@@ -13,13 +13,12 @@ use Mojo::UserAgent;
 use Mojo::JSON qw(to_json from_json decode_json encode_json);
 use POSIX qw/strftime/;
 use Mojo::CSV;
+use Data::Dumper;
 
-my $admin_username  = $ENV{ISPCONFIG_ADMIN_USERNAME};
-my $admin_password  = $ENV{ISPCONFIG_ADMIN_PASSWORD};
-my $host            = $ENV{ISPCONFIG_HOST};
-my $URL             = "https://172.30.32.232:8080";
-
-my $default_password = 'aFfrFB!5';
+my $admin_username    = $ENV{ISPCONFIG_ADMIN_USERNAME};
+my $admin_password    = $ENV{ISPCONFIG_ADMIN_PASSWORD};
+my $host              = $ENV{ISPCONFIG_HOST};
+my $default_password  = $ENV{DEFAULT_PASSWORD};
 
 my $ua  = Mojo::UserAgent->new;
 
@@ -29,10 +28,13 @@ my $csv = Mojo::CSV->new( in => 'isp_etu.csv' );
 
 ispconfig_login($ua);
 
+my $global_id = ispconfig_next_clientid($ua);
+
 while ( my $row = $csv->row ) {
   my ($nom, $prenom, $username, $email, $numero) = split(/;/, @$row[0]);
+  next unless $nom && $prenom && $username && $email && $numero;
 
-  my $res = $ua->get($URL."/client/client_edit.php")->result;
+  my $res = $ua->get('https://'.$host."/client/client_edit.php")->result;
 
   sleep(2);
 
@@ -40,13 +42,14 @@ while ( my $row = $csv->row ) {
   print '$prenom    = '.$prenom."\n";
   print '$username  = '.$username."\n";
   print '$email     = '.$email."\n";
-  print '$numero    = '.$numero."\n";
+
+  $numero = $global_id;
 
   my $csrf_id     = Mojo::DOM->new($res->body)->find('input[name="_csrf_id"]')->first->attr('value');
   my $csrf_key    = Mojo::DOM->new($res->body)->find('input[name="_csrf_key"]')->first->attr('value');
   my $phpsessid   = Mojo::DOM->new($res->body)->find('input[name="phpsessid"]')->first->attr('value');
 
-  my $tx = $ua->post($URL.'/client/client_edit.php' => {
+  my $tx = $ua->post('https://'.$host.'/client/client_edit.php' => {
     'Host'              => $host,
     'Origin'            => 'https://'.$host,
     'Referer'           => 'https://'.$host.'/login/',
@@ -101,9 +104,9 @@ while ( my $row = $csv->row ) {
   $phpsessid    = Mojo::DOM->new($html)->find('input[name="phpsessid"]')->first->attr('value');
   my $id        = Mojo::DOM->new($html)->find('input[name="id"]')->first->attr('value');
 
-  print '$id = '.$id."\n";
+  print 'Created client id '.$id."\n";
 
-  my $tx2 = $ua->post($URL.'/client/client_edit.php' => {
+  my $tx2 = $ua->post('https://'.$host.'/client/client_edit.php' => {
   'Host'              => $host,
   'Origin'            => 'https://'.$host,
   'Referer'           => 'https://'.$host.'/login/',
@@ -167,6 +170,9 @@ while ( my $row = $csv->row ) {
   print 'DONE '."\n";
 
   sleep (2);
+
+  $global_id++;
+
 }
 
 exit;
@@ -177,11 +183,11 @@ sub ispconfig_login {
 
   print "Login in ispconfig with admin\n";
 
-  my $res = $ua->get($URL."/login/")->result;
+  my $res = $ua->get('https://'.$host."/login/")->result;
 
   sleep(1);
 
-  my $tx = $ua->post($URL.'/login/index.php' => {
+  my $tx = $ua->post('https://'.$host.'/login/index.php' => {
     'Host'              => $host,
     'Origin'            => 'https://'.$host,
     'Referer'           => 'https://'.$host.'/login/',
@@ -193,6 +199,40 @@ sub ispconfig_login {
   });
 
   sleep(1);
+
+}
+
+sub ispconfig_next_clientid {
+	my ($ua) = @_;
+
+  print "Get last id ";
+
+  # bah
+  $ua->post('https://'.$host.'/client/client_list.php?orderby=client_id' => {
+    'Host'              => $host,
+    'Origin'            => 'https://'.$host,
+    'Referer'           => 'https://'.$host.'/login/',
+  } => form => {
+    search_limit          => '1',
+  });
+
+  # oui
+  my $tx = $ua->post('https://'.$host.'/client/client_list.php?orderby=client_id' => {
+    'Host'              => $host,
+    'Origin'            => 'https://'.$host,
+    'Referer'           => 'https://'.$host.'/login/',
+  } => form => {
+    search_limit          => '1',
+  });
+
+  my $html = $tx->result->body;
+
+  my ($prefix, $client_id) = split(/-/, Mojo::DOM->new($html)->find('tbody tr td')->to_array->[4]->all_text);
+  
+  $client_id++;
+
+  return $client_id;
+
 
 }
 
