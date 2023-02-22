@@ -30,7 +30,7 @@ my $csv = Mojo::CSV->new( in => 'isp_etu.csv' );
 ispconfig_login($ua);
 
 while ( my $row = $csv->row ) {
-  my ($nom, $prenom, $domaine, $email, $numero) = split(/;/, @$row[0]);
+  my ($nom, $prenom, $username, $email, $numero) = split(/;/, @$row[0]);
 
   my $res = $ua->get($URL."/client/client_edit.php")->result;
 

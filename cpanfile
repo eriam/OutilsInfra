@@ -1,4 +1,6 @@
+requires 'Expect' => 0;
 requires 'File::Slurper' => 0;
+requires 'Mojo::CSV' => 0;
 requires 'Data::ICal'				                   => 0;
 requires 'DBIx::Class'                          	=> 0;
 requires 'DBIx::Class::Helper::ResultSet::Random' => 0;
