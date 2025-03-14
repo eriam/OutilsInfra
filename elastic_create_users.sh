@@ -26,7 +26,7 @@ do
               \"indices\": [
                 {
                   \"names\": [\"apm-${username}-*\"],
-                  \"privileges\": [\"read\", \"view_index_metadata\", \"monitor\"]
+                  \"privileges\": [\"all\"]
                 }
               ]
             }"
